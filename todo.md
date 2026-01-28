@@ -52,7 +52,7 @@
 
 ### Sprint 1: Correções Críticas (P0) - 24 horas
 - [x] P0-1: Corrigir bug de geração de PDF (1h)
-- [ ] P0-2: Adicionar indicador de progresso no formulário (2h)
+- [x] P0-2: Adicionar indicador de progresso no formulário (2h)
 - [ ] P0-3: Implementar salvamento automático (4h)
 - [ ] P0-4: Marcar campos obrigatórios visualmente (2h)
 - [ ] P0-5: Adicionar preview de fotos (3h)

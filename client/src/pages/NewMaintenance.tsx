@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
 import { trpc } from "@/lib/trpc";
 import { CHECKLIST_EQUIPMENT } from "@shared/checklistEquipments";
 import { ArrowLeft, Camera, Save } from "lucide-react";
@@ -46,6 +47,12 @@ export default function NewMaintenance() {
   const createMaintenanceMutation = trpc.maintenances.create.useMutation();
   const createChecklistItemMutation = trpc.checklistItems.create.useMutation();
   const uploadPhotoMutation = trpc.photos.upload.useMutation();
+
+  // Cálculo de progresso
+  const filledItems = checklistItems.filter(item => 
+    item.status !== 'nao_conferido'
+  ).length;
+  const progress = (filledItems / checklistItems.length) * 100;
 
   const updateChecklistItem = (index: number, field: keyof ChecklistItemData, value: any) => {
     setChecklistItems((prev) => {
@@ -157,6 +164,21 @@ export default function NewMaintenance() {
           </Button>
         </div>
       </header>
+
+      {/* Barra de Progresso Fixa */}
+      <div className="sticky top-[73px] z-20 bg-card border-b border-border shadow-sm">
+        <div className="container py-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-semibold text-foreground">
+              Progresso do Checklist
+            </span>
+            <span className="text-sm font-medium text-primary">
+              {filledItems} de {checklistItems.length} itens preenchidos ({Math.round(progress)}%)
+            </span>
+          </div>
+          <Progress value={progress} className="h-2" />
+        </div>
+      </div>
 
       <main className="container py-8">
         <form onSubmit={handleSubmit} className="space-y-8">
