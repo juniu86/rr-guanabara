@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,16 +16,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { ArrowLeft, Download, Trash2, Image as ImageIcon } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { useState } from "react";
 import { toast } from "sonner";
 
 export default function MaintenanceDetails() {
+  const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
   const maintenanceId = parseInt(id);
 
-  const { data: maintenance } = trpc.maintenances.getById.useQuery({ id: maintenanceId });
+  const { data: maintenance, refetch } = trpc.maintenances.getById.useQuery({ id: maintenanceId });
   const { data: station } = trpc.stations.getById.useQuery(
     { id: maintenance?.stationId || 0 },
     { enabled: !!maintenance }
@@ -35,6 +38,15 @@ export default function MaintenanceDetails() {
   
   const generatePDFMutation = trpc.maintenances.generatePDF.useMutation();
   const deleteMutation = trpc.maintenances.deleteWithPassword.useMutation();
+  const updateStatusMutation = trpc.maintenances.updateStatus.useMutation({
+    onSuccess: () => {
+      toast.success('Status atualizado com sucesso!');
+      refetch();
+    },
+    onError: (error) => {
+      toast.error(`Erro ao atualizar status: ${error.message}`);
+    },
+  });
 
   const handleGeneratePDF = async () => {
     // Validação do ID
@@ -221,9 +233,28 @@ export default function MaintenanceDetails() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Status</p>
-              <Badge variant={maintenance.status === "approved" ? "default" : "secondary"}>
-                {maintenance.status === "draft" ? "Rascunho" : maintenance.status === "completed" ? "Concluída" : "Aprovada"}
-              </Badge>
+              {(user?.role === 'rr_admin' || user?.role === 'admin') ? (
+                <Select 
+                  value={maintenance.status} 
+                  onValueChange={(status: "draft" | "completed" | "approved") => 
+                    updateStatusMutation.mutate({ id: maintenanceId, status })
+                  }
+                  disabled={updateStatusMutation.isPending}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Rascunho</SelectItem>
+                    <SelectItem value="completed">Concluída</SelectItem>
+                    <SelectItem value="approved">Aprovada</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Badge variant={maintenance.status === "approved" ? "default" : "secondary"}>
+                  {maintenance.status === "draft" ? "Rascunho" : maintenance.status === "completed" ? "Concluída" : "Aprovada"}
+                </Badge>
+              )}
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Posto</p>

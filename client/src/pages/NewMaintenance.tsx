@@ -13,6 +13,23 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 
+// Helper para ler arquivo como base64 de forma síncrona
+const readFileAsBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result?.toString().split(",")[1];
+      if (base64) {
+        resolve(base64);
+      } else {
+        reject(new Error("Falha ao ler arquivo"));
+      }
+    };
+    reader.onerror = () => reject(new Error("Erro ao ler arquivo"));
+    reader.readAsDataURL(file);
+  });
+};
+
 type ChecklistItemData = {
   itemNumber: number;
   equipmentName: string;
@@ -215,20 +232,23 @@ export default function NewMaintenance() {
           observations: item.observations,
         });
 
-        // Upload de fotos
-        for (const photo of item.photos) {
-          const reader = new FileReader();
-          reader.onloadend = async () => {
-            const base64 = reader.result?.toString().split(",")[1];
-            if (base64) {
-              await uploadPhotoMutation.mutateAsync({
-                checklistItemId: itemId,
-                fileData: base64,
-                fileName: photo.name,
-              });
-            }
-          };
-          reader.readAsDataURL(photo);
+        // Upload de fotos - aguardar todos os uploads antes de continuar
+        if (item.photos.length > 0) {
+          await Promise.all(
+            item.photos.map(async (photo) => {
+              try {
+                const base64 = await readFileAsBase64(photo);
+                await uploadPhotoMutation.mutateAsync({
+                  checklistItemId: itemId,
+                  fileData: base64,
+                  fileName: photo.name,
+                });
+              } catch (error) {
+                console.error(`Erro ao fazer upload de ${photo.name}:`, error);
+                toast.error(`Erro ao fazer upload de ${photo.name}`);
+              }
+            })
+          );
         }
       }
 
