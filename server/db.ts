@@ -157,3 +157,22 @@ export async function getPhotosByChecklistItem(checklistItemId: number) {
   if (!db) return [];
   return await db.select().from(photos).where(eq(photos.checklistItemId, checklistItemId));
 }
+
+// Funções de delete
+export async function deletePhotosByChecklistItem(checklistItemId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(photos).where(eq(photos.checklistItemId, checklistItemId));
+}
+
+export async function deleteChecklistItemsByMaintenance(maintenanceId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(checklistItems).where(eq(checklistItems.maintenanceId, maintenanceId));
+}
+
+export async function deleteMaintenance(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(maintenances).where(eq(maintenances.id, id));
+}

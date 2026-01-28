@@ -71,3 +71,12 @@
 - [ ] P2-1: Adicionar ícones visuais para equipamentos (4h)
 - [ ] P2-2: Implementar modo escuro (4h)
 - [ ] P2-3: Adicionar suporte a voz para observações (8h)
+
+## 🆕 Novas Funcionalidades (28/01/2026)
+- [x] Criar botão com senha "rrengenharia" para apagar manutenções
+- [x] Limpar todos os registros de manutenção do banco de dados
+- [ ] Implementar dashboard visual com Status da Unidade (% saúde)
+- [ ] Adicionar Radar de Conformidade (NR-20, NR-10, Documentação, Limpeza, Metrologia)
+- [ ] Implementar SLA Timer (tempo desde última visita)
+- [ ] Criar sistema QUESLog de ações necessárias com status
+- [ ] Adicionar cards de ações críticas com priorização visual

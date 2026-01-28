@@ -101,6 +101,30 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    deleteWithPassword: protectedProcedure
+      .input(z.object({ 
+        id: z.number(),
+        password: z.string()
+      }))
+      .mutation(async ({ input }) => {
+        // Verificar senha
+        if (input.password !== 'rrengenharia') {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Senha incorreta' });
+        }
+
+        // Deletar fotos, itens e manutenção
+        const items = await db.getChecklistItemsByMaintenance(input.id);
+        
+        for (const item of items) {
+          await db.deletePhotosByChecklistItem(item.id);
+        }
+        
+        await db.deleteChecklistItemsByMaintenance(input.id);
+        await db.deleteMaintenance(input.id);
+        
+        return { success: true };
+      }),
+
     generatePDF: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {

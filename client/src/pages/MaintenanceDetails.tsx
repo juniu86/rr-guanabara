@@ -1,9 +1,23 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Download, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, Download, Trash2, Image as ImageIcon } from "lucide-react";
 import { Link, useParams } from "wouter";
+import { useState } from "react";
 import { toast } from "sonner";
 
 export default function MaintenanceDetails() {
@@ -16,7 +30,11 @@ export default function MaintenanceDetails() {
     { enabled: !!maintenance }
   );
 
+  const [deletePassword, setDeletePassword] = useState('');
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  
   const generatePDFMutation = trpc.maintenances.generatePDF.useMutation();
+  const deleteMutation = trpc.maintenances.deleteWithPassword.useMutation();
 
   const handleGeneratePDF = async () => {
     // Validação do ID
@@ -59,6 +77,31 @@ export default function MaintenanceDetails() {
         : 'Erro desconhecido ao gerar PDF';
       
       toast.error(`Erro: ${errorMessage}`, { id: 'pdf-generation' });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletePassword) {
+      toast.error('Digite a senha');
+      return;
+    }
+
+    try {
+      await deleteMutation.mutateAsync({
+        id: maintenanceId,
+        password: deletePassword
+      });
+      
+      toast.success('Manutenção deletada com sucesso!');
+      setIsDeleteDialogOpen(false);
+      
+      // Redirecionar para home após 1 segundo
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 1000);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao deletar';
+      toast.error(errorMessage);
     }
   };
 
@@ -110,10 +153,54 @@ export default function MaintenanceDetails() {
               <p className="text-sm text-muted-foreground">{station?.name}</p>
             </div>
           </div>
-          <Button onClick={handleGeneratePDF} disabled={generatePDFMutation.isPending} className="gap-2">
-            <Download className="h-4 w-4" />
-            {generatePDFMutation.isPending ? "Gerando PDF..." : "Gerar PDF"}
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleGeneratePDF} disabled={generatePDFMutation.isPending} className="gap-2">
+              <Download className="h-4 w-4" />
+              {generatePDFMutation.isPending ? "Gerando PDF..." : "Gerar PDF"}
+            </Button>
+            
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="gap-2">
+                  <Trash2 className="h-4 w-4" />
+                  Deletar
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Deletar Manutenção</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação não pode ser desfeita. Digite a senha para confirmar.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="space-y-2 py-4">
+                  <Label htmlFor="delete-password">Senha</Label>
+                  <Input
+                    id="delete-password"
+                    type="password"
+                    placeholder="Digite a senha"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleDelete();
+                      }
+                    }}
+                  />
+                </div>
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setDeletePassword('')}>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleDelete}
+                    disabled={deleteMutation.isPending}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deleteMutation.isPending ? 'Deletando...' : 'Deletar'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       </header>
 
