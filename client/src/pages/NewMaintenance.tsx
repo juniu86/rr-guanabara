@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { trpc } from "@/lib/trpc";
 import { CHECKLIST_EQUIPMENT } from "@shared/checklistEquipments";
-import { ArrowLeft, Camera, Save } from "lucide-react";
+import { ArrowLeft, Camera, Save, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
@@ -155,6 +155,11 @@ export default function NewMaintenance() {
     if (!files) return;
     const newPhotos = Array.from(files);
     updateChecklistItem(index, "photos", [...checklistItems[index].photos, ...newPhotos]);
+  };
+
+  const removePhoto = (itemIndex: number, photoIndex: number) => {
+    const updatedPhotos = checklistItems[itemIndex].photos.filter((_, i) => i !== photoIndex);
+    updateChecklistItem(itemIndex, "photos", updatedPhotos);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -455,10 +460,40 @@ export default function NewMaintenance() {
                         className="hidden"
                         onChange={(e) => handlePhotoChange(index, e.target.files)}
                       />
+                      
+                      {/* Preview de fotos */}
                       {item.photos.length > 0 && (
-                        <span className="text-sm text-muted-foreground">
-                          {item.photos.length} foto(s) selecionada(s)
-                        </span>
+                        <div className="mt-3">
+                          <p className="text-sm font-medium text-foreground mb-2">
+                            {item.photos.length} foto(s) selecionada(s)
+                          </p>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            {item.photos.map((photo, photoIndex) => {
+                              const photoUrl = URL.createObjectURL(photo);
+                              return (
+                                <div key={photoIndex} className="relative group">
+                                  <img
+                                    src={photoUrl}
+                                    alt={`Foto ${photoIndex + 1}`}
+                                    className="w-full h-24 object-cover rounded-md border border-border"
+                                    onLoad={() => URL.revokeObjectURL(photoUrl)}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => removePhoto(index, photoIndex)}
+                                    className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="Remover foto"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                  <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">
+                                    {photoIndex + 1}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>

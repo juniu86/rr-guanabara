@@ -55,7 +55,7 @@
 - [x] P0-2: Adicionar indicador de progresso no formulário (2h)
 - [x] P0-3: Implementar salvamento automático (4h)
 - [x] P0-4: Marcar campos obrigatórios visualmente (2h)
-- [ ] P0-5: Adicionar preview de fotos (3h)
+- [x] P0-5: Adicionar preview de fotos (3h)
 - [ ] P0-6: Simplificar textos dos 64 equipamentos (6h)
 - [ ] P0-7: Adicionar busca e filtro de equipamentos (4h)
 - [ ] P0-8: Corrigir upload assíncrono de fotos (2h)
