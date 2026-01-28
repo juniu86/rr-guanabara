@@ -16,18 +16,50 @@ export default function MaintenanceDetails() {
     { enabled: !!maintenance }
   );
 
-  const generatePDFMutation = trpc.maintenances.generatePDF.useMutation({
-    onSuccess: (data) => {
-      toast.success("PDF gerado com sucesso!");
-      window.open(data.url, "_blank");
-    },
-    onError: () => {
-      toast.error("Erro ao gerar PDF");
-    },
-  });
+  const generatePDFMutation = trpc.maintenances.generatePDF.useMutation();
 
-  const handleGeneratePDF = () => {
-    generatePDFMutation.mutate({ id: maintenanceId });
+  const handleGeneratePDF = async () => {
+    // Validação do ID
+    if (!maintenanceId || isNaN(maintenanceId)) {
+      toast.error('ID de manutenção inválido');
+      console.error('[PDF] ID inválido:', maintenanceId, 'id original:', id);
+      return;
+    }
+
+    try {
+      // Mostrar loading
+      toast.loading('Gerando PDF...', { id: 'pdf-generation' });
+      console.log('[PDF] Iniciando geração para ID:', maintenanceId);
+      
+      // Chamar API
+      const result = await generatePDFMutation.mutateAsync({ 
+        id: maintenanceId
+      });
+      
+      console.log('[PDF] PDF gerado com sucesso:', result.url);
+      
+      // Abrir PDF em nova aba
+      window.open(result.url, '_blank');
+      
+      // Sucesso
+      toast.success('PDF gerado com sucesso!', { id: 'pdf-generation' });
+    } catch (error) {
+      // Log detalhado do erro
+      console.error('[PDF] Erro completo:', {
+        error,
+        message: error instanceof Error ? error.message : 'Erro desconhecido',
+        stack: error instanceof Error ? error.stack : undefined,
+        maintenanceId,
+        maintenance
+      });
+      
+      // Mensagem específica para o usuário
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Erro desconhecido ao gerar PDF';
+      
+      toast.error(`Erro: ${errorMessage}`, { id: 'pdf-generation' });
+    }
   };
 
   const getStatusLabel = (status: string) => {
@@ -80,7 +112,7 @@ export default function MaintenanceDetails() {
           </div>
           <Button onClick={handleGeneratePDF} disabled={generatePDFMutation.isPending} className="gap-2">
             <Download className="h-4 w-4" />
-            {generatePDFMutation.isPending ? "Gerando..." : "Gerar PDF"}
+            {generatePDFMutation.isPending ? "Gerando PDF..." : "Gerar PDF"}
           </Button>
         </div>
       </header>

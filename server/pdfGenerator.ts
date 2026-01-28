@@ -11,12 +11,16 @@ export async function generateMaintenancePDF(
   technicianName: string
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: "A4", margin: 50 });
-    const chunks: Buffer[] = [];
+    try {
+      const doc = new PDFDocument({ size: "A4", margin: 50 });
+      const chunks: Buffer[] = [];
 
-    doc.on("data", (chunk) => chunks.push(chunk));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
-    doc.on("error", reject);
+      doc.on("data", (chunk) => chunks.push(chunk));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on("error", (err) => {
+        console.error("[PDF] Erro no documento:", err);
+        reject(err);
+      });
 
     // Cores RR Engenharia
     const primaryColor = "#0963ed"; // Azul claro
@@ -160,7 +164,11 @@ export async function generateMaintenancePDF(
       );
     }
 
-    doc.end();
+      doc.end();
+    } catch (error) {
+      console.error("[PDF] Erro ao gerar PDF:", error);
+      reject(error);
+    }
   });
 }
 

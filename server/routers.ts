@@ -104,36 +104,57 @@ export const appRouter = router({
     generatePDF: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
-        const maintenance = await db.getMaintenanceById(input.id);
-        if (!maintenance) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Manutenção não encontrada' });
+        try {
+          console.log('[PDF] Iniciando geração de PDF para manutenção:', input.id);
+          
+          const maintenance = await db.getMaintenanceById(input.id);
+          if (!maintenance) {
+            throw new TRPCError({ code: 'NOT_FOUND', message: 'Manutenção não encontrada' });
+          }
+          console.log('[PDF] Manutenção encontrada:', maintenance.preventiveNumber);
+
+          const items = await db.getChecklistItemsByMaintenance(input.id);
+          console.log('[PDF] Itens do checklist:', items.length);
+          
+          const itemsWithPhotos = await Promise.all(
+            items.map(async (item) => {
+              const photos = await db.getPhotosByChecklistItem(item.id);
+              return { ...item, photos };
+            })
+          );
+          console.log('[PDF] Fotos carregadas');
+
+          const station = await db.getStationById(maintenance.stationId);
+          if (!station) {
+            throw new TRPCError({ code: 'NOT_FOUND', message: 'Posto não encontrado' });
+          }
+          console.log('[PDF] Posto encontrado:', station.name);
+
+          const { generateMaintenancePDF } = await import('./pdfGenerator');
+          console.log('[PDF] Gerando documento PDF...');
+          
+          const pdfBuffer = await generateMaintenancePDF(
+            { ...maintenance, items: itemsWithPhotos },
+            station,
+            ctx.user.name || 'Técnico'
+          );
+          console.log('[PDF] PDF gerado com sucesso. Tamanho:', pdfBuffer.length, 'bytes');
+
+          // Upload PDF para S3
+          const fileKey = `maintenance-reports/${maintenance.id}/${nanoid()}-relatorio.pdf`;
+          console.log('[PDF] Fazendo upload para S3:', fileKey);
+          
+          const { url } = await storagePut(fileKey, pdfBuffer, 'application/pdf');
+          console.log('[PDF] Upload concluído:', url);
+
+          return { url };
+        } catch (error) {
+          console.error('[PDF] Erro ao gerar PDF:', error);
+          throw new TRPCError({ 
+            code: 'INTERNAL_SERVER_ERROR', 
+            message: `Erro ao gerar PDF: ${error instanceof Error ? error.message : 'Erro desconhecido'}` 
+          });
         }
-
-        const items = await db.getChecklistItemsByMaintenance(input.id);
-        const itemsWithPhotos = await Promise.all(
-          items.map(async (item) => {
-            const photos = await db.getPhotosByChecklistItem(item.id);
-            return { ...item, photos };
-          })
-        );
-
-        const station = await db.getStationById(maintenance.stationId);
-        if (!station) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Posto não encontrado' });
-        }
-
-        const { generateMaintenancePDF } = await import('./pdfGenerator');
-        const pdfBuffer = await generateMaintenancePDF(
-          { ...maintenance, items: itemsWithPhotos },
-          station,
-          ctx.user.name || 'Técnico'
-        );
-
-        // Upload PDF para S3
-        const fileKey = `maintenance-reports/${maintenance.id}/${nanoid()}-relatorio.pdf`;
-        const { url } = await storagePut(fileKey, pdfBuffer, 'application/pdf');
-
-        return { url };
       }),
   }),
 
