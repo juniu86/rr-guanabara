@@ -33,6 +33,7 @@ export default function NewMaintenance() {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [observations, setObservations] = useState("");
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ [key: string]: boolean }>({});
   const [checklistItems, setChecklistItems] = useState<ChecklistItemData[]>(
     CHECKLIST_EQUIPMENT.map((eq) => ({
       itemNumber: eq.itemNumber,
@@ -159,10 +160,19 @@ export default function NewMaintenance() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!stationId || !preventiveNumber) {
-      toast.error("Preencha todos os campos obrigatórios");
+    // Validar campos obrigatórios
+    const errors: { [key: string]: boolean } = {};
+    if (!stationId) errors.stationId = true;
+    if (!preventiveNumber) errors.preventiveNumber = true;
+    
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      toast.error("Preencha todos os campos obrigatórios marcados com *");
       return;
     }
+    
+    // Limpar erros se validação passou
+    setFieldErrors({});
 
     try {
       toast.loading("Salvando manutenção...");
@@ -287,9 +297,19 @@ export default function NewMaintenance() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="station">Posto *</Label>
-                  <Select value={stationId} onValueChange={setStationId}>
-                    <SelectTrigger id="station">
+                  <Label htmlFor="station">
+                    Posto <span className="text-destructive">*</span>
+                  </Label>
+                  <Select value={stationId} onValueChange={(value) => {
+                    setStationId(value);
+                    if (fieldErrors.stationId) {
+                      setFieldErrors(prev => ({ ...prev, stationId: false }));
+                    }
+                  }}>
+                    <SelectTrigger 
+                      id="station" 
+                      className={fieldErrors.stationId ? 'border-destructive' : ''}
+                    >
                       <SelectValue placeholder="Selecione o posto" />
                     </SelectTrigger>
                     <SelectContent>
@@ -303,17 +323,27 @@ export default function NewMaintenance() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="preventiveNumber">Número da Preventiva *</Label>
+                  <Label htmlFor="preventiveNumber">
+                    Número da Preventiva <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="preventiveNumber"
                     value={preventiveNumber}
-                    onChange={(e) => setPreventiveNumber(e.target.value)}
+                    onChange={(e) => {
+                      setPreventiveNumber(e.target.value);
+                      if (fieldErrors.preventiveNumber) {
+                        setFieldErrors(prev => ({ ...prev, preventiveNumber: false }));
+                      }
+                    }}
+                    className={fieldErrors.preventiveNumber ? 'border-destructive' : ''}
                     placeholder="Ex: 01"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="date">Data *</Label>
+                  <Label htmlFor="date">
+                    Data <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="date"
                     type="date"
