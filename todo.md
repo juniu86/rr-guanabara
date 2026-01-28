@@ -80,3 +80,6 @@
 - [ ] Implementar SLA Timer (tempo desde última visita)
 - [ ] Criar sistema QUESLog de ações necessárias com status
 - [ ] Adicionar cards de ações críticas com priorização visual
+
+## 🐛 Bugs Reportados
+- [x] Corrigir erro "switchToPage(0) out of bounds" na geração de PDF

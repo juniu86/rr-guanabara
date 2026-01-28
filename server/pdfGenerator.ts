@@ -152,12 +152,12 @@ export async function generateMaintenancePDF(
     });
 
     // Rodapé
-    const pageCount = doc.bufferedPageRange().count;
-    for (let i = 0; i < pageCount; i++) {
+    const range = doc.bufferedPageRange();
+    for (let i = range.start; i < range.start + range.count; i++) {
       doc.switchToPage(i);
       doc.fontSize(8).fillColor("#666666");
       doc.text(
-        `Página ${i + 1} de ${pageCount} | RR Engenharia e Soluções | ${new Date().toLocaleDateString("pt-BR")}`,
+        `Página ${i - range.start + 1} de ${range.count} | RR Engenharia e Soluções | ${new Date().toLocaleDateString("pt-BR")}`,
         50,
         doc.page.height - 50,
         { align: "center", width: doc.page.width - 100 }
