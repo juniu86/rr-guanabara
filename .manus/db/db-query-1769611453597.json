@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO stations (name, address) VALUES \n('Padre Miguel', 'Estrada da Água Branca, 3400, Realengo, Rio de Janeiro-RJ'),\n('Paciência', 'Avenida Brasil 51.000, Paciência, Rio de Janeiro')\nON DUPLICATE KEY UPDATE name=name;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 268sP8KynbaAvRq.fa4868f7bd24 --database 4zMd4JEhngdkfevyddfASN --execute INSERT INTO stations (name, address) VALUES \n('Padre Miguel', 'Estrada da Água Branca, 3400, Realengo, Rio de Janeiro-RJ'),\n('Paciência', 'Avenida Brasil 51.000, Paciência, Rio de Janeiro')\nON DUPLICATE KEY UPDATE name=name;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 134
+}

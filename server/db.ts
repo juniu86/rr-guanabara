@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, stations, maintenances, checklistItems, photos, InsertMaintenance, InsertChecklistItem, InsertPhoto } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,71 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// Station helpers
+export async function getAllStations() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(stations);
+}
+
+export async function getStationById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(stations).where(eq(stations.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+// Maintenance helpers
+export async function createMaintenance(data: InsertMaintenance) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(maintenances).values(data);
+  return result[0].insertId;
+}
+
+export async function getMaintenancesByStation(stationId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(maintenances).where(eq(maintenances.stationId, stationId));
+}
+
+export async function getMaintenanceById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(maintenances).where(eq(maintenances.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function updateMaintenanceStatus(id: number, status: "draft" | "completed" | "approved") {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(maintenances).set({ status }).where(eq(maintenances.id, id));
+}
+
+// Checklist item helpers
+export async function createChecklistItem(data: InsertChecklistItem) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(checklistItems).values(data);
+  return result[0].insertId;
+}
+
+export async function getChecklistItemsByMaintenance(maintenanceId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(checklistItems).where(eq(checklistItems.maintenanceId, maintenanceId));
+}
+
+// Photo helpers
+export async function createPhoto(data: InsertPhoto) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(photos).values(data);
+  return result[0].insertId;
+}
+
+export async function getPhotosByChecklistItem(checklistItemId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(photos).where(eq(photos.checklistItemId, checklistItemId));
+}
