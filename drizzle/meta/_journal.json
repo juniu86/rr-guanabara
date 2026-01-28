@@ -22,6 +22,13 @@
       "when": 1769611053628,
       "tag": "0002_equal_kabuki",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1769627348811,
+      "tag": "0003_nebulous_bloodstrike",
+      "breakpoints": true
     }
   ]
 }

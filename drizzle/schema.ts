@@ -50,6 +50,10 @@ export const maintenances = mysqlTable("maintenances", {
   date: timestamp("date").notNull(),
   status: mysqlEnum("status", ["draft", "completed", "approved"]).default("draft").notNull(),
   observations: text("observations"),
+  technicianSignature: text("technicianSignature"), // Nome do técnico que assinou
+  technicianSignatureDate: timestamp("technicianSignatureDate"),
+  clientSignature: text("clientSignature"), // Nome do cliente que assinou
+  clientSignatureDate: timestamp("clientSignatureDate"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

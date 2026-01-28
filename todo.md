@@ -83,3 +83,14 @@
 
 ## 🐛 Bugs Reportados
 - [x] Corrigir erro "switchToPage(0) out of bounds" na geração de PDF
+
+## 🚀 Novas Implementações Solicitadas
+- [x] Corrigir download automático de PDF (não está baixando)
+- [x] Adicionar campos de assinatura do técnico no formulário
+- [x] Adicionar campo de assinatura do cliente no formulário
+- [x] Mudar status de rascunho para concluído após assinaturas
+- [x] Criar dashboard visual com Status da Unidade (% saúde operacional)
+- [x] Implementar Radar de Conformidade (NR-20, NR-10, Documentação, Limpeza/SS, Metrologia)
+- [x] Adicionar SLA Timer mostrando tempo desde última visita
+- [x] Criar sistema QUESLog com ações necessárias e status
+- [x] Adicionar cards de ações críticas com priorização visual

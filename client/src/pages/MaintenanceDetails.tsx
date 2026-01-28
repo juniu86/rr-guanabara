@@ -56,8 +56,13 @@ export default function MaintenanceDetails() {
       
       console.log('[PDF] PDF gerado com sucesso:', result.url);
       
-      // Abrir PDF em nova aba
-      window.open(result.url, '_blank');
+      // Download automático do PDF
+      const link = document.createElement('a');
+      link.href = result.url;
+      link.download = `Relatorio_Manutencao_${maintenance?.preventiveNumber || 'N'}_${station?.name || 'Posto'}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       
       // Sucesso
       toast.success('PDF gerado com sucesso!', { id: 'pdf-generation' });

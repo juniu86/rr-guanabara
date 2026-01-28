@@ -111,6 +111,12 @@ export async function createMaintenance(data: InsertMaintenance) {
   return result[0].insertId;
 }
 
+export async function getAllMaintenances() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(maintenances);
+}
+
 export async function getMaintenancesByStation(stationId: number) {
   const db = await getDb();
   if (!db) return [];

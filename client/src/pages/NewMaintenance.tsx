@@ -32,6 +32,8 @@ export default function NewMaintenance() {
   const [preventiveNumber, setPreventiveNumber] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [observations, setObservations] = useState("");
+  const [technicianSignature, setTechnicianSignature] = useState("");
+  const [clientSignature, setClientSignature] = useState("");
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: boolean }>({});
   const [checklistItems, setChecklistItems] = useState<ChecklistItemData[]>(
@@ -169,10 +171,18 @@ export default function NewMaintenance() {
     const errors: { [key: string]: boolean } = {};
     if (!stationId) errors.stationId = true;
     if (!preventiveNumber) errors.preventiveNumber = true;
+    if (!technicianSignature) errors.technicianSignature = true;
+    if (!clientSignature) errors.clientSignature = true;
     
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       toast.error("Preencha todos os campos obrigatórios marcados com *");
+      
+      // Scroll para o primeiro campo com erro
+      const firstErrorField = document.querySelector('.border-red-500');
+      if (firstErrorField) {
+        firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
       return;
     }
     
@@ -188,6 +198,9 @@ export default function NewMaintenance() {
         preventiveNumber,
         date: new Date(date),
         observations,
+        technicianSignature,
+        clientSignature,
+        status: 'completed', // Mudar para completed quando tem assinaturas
       });
 
       // Criar itens do checklist
@@ -367,6 +380,56 @@ export default function NewMaintenance() {
                   placeholder="Observações sobre a manutenção..."
                   rows={3}
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Assinaturas</CardTitle>
+              <CardDescription>
+                Assinaturas do técnico responsável e do cliente para validação
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="technicianSignature">
+                    Assinatura do Técnico <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="technicianSignature"
+                    value={technicianSignature}
+                    onChange={(e) => setTechnicianSignature(e.target.value)}
+                    placeholder="Nome completo do técnico"
+                    className={fieldErrors.technicianSignature ? 'border-red-500' : ''}
+                  />
+                  {fieldErrors.technicianSignature && (
+                    <p className="text-sm text-red-500">Campo obrigatório</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="clientSignature">
+                    Assinatura do Cliente <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="clientSignature"
+                    value={clientSignature}
+                    onChange={(e) => setClientSignature(e.target.value)}
+                    placeholder="Nome completo do responsável"
+                    className={fieldErrors.clientSignature ? 'border-red-500' : ''}
+                  />
+                  {fieldErrors.clientSignature && (
+                    <p className="text-sm text-red-500">Campo obrigatório</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  ⚠️ Ao assinar, a manutenção será marcada como <strong>concluída</strong> e não poderá mais ser editada.
+                </p>
               </div>
             </CardContent>
           </Card>

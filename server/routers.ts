@@ -55,14 +55,24 @@ export const appRouter = router({
         preventiveNumber: z.string(),
         date: z.date(),
         observations: z.string().optional(),
+        technicianSignature: z.string().optional(),
+        clientSignature: z.string().optional(),
+        status: z.enum(["draft", "completed", "approved"]).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const maintenanceId = await db.createMaintenance({
           ...input,
           technicianId: ctx.user.id,
-          status: "draft",
+          status: input.status || "draft",
+          technicianSignatureDate: input.technicianSignature ? new Date() : undefined,
+          clientSignatureDate: input.clientSignature ? new Date() : undefined,
         });
         return { maintenanceId };
+      }),
+
+    listAll: protectedProcedure
+      .query(async () => {
+        return await db.getAllMaintenances();
       }),
 
     listByStation: protectedProcedure
