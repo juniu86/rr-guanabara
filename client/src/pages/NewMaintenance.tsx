@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { trpc } from "@/lib/trpc";
 import { CHECKLIST_EQUIPMENT } from "@shared/checklistEquipments";
 import { ArrowLeft, Camera, Save } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 
@@ -32,6 +32,7 @@ export default function NewMaintenance() {
   const [preventiveNumber, setPreventiveNumber] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [observations, setObservations] = useState("");
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [checklistItems, setChecklistItems] = useState<ChecklistItemData[]>(
     CHECKLIST_EQUIPMENT.map((eq) => ({
       itemNumber: eq.itemNumber,
@@ -53,6 +54,93 @@ export default function NewMaintenance() {
     item.status !== 'nao_conferido'
   ).length;
   const progress = (filledItems / checklistItems.length) * 100;
+
+  // Salvamento automático a cada 30 segundos
+  useEffect(() => {
+    const timer = setInterval(() => {
+      try {
+        // Preparar dados para salvar (sem fotos, pois File não é serializável)
+        const dataToSave = {
+          stationId,
+          preventiveNumber,
+          date,
+          observations,
+          checklistItems: checklistItems.map(item => ({
+            itemNumber: item.itemNumber,
+            equipmentName: item.equipmentName,
+            status: item.status,
+            value: item.value,
+            correctiveAction: item.correctiveAction,
+            observations: item.observations,
+            photoCount: item.photos.length
+          })),
+          timestamp: Date.now()
+        };
+        
+        localStorage.setItem('maintenance-draft', JSON.stringify(dataToSave));
+        setLastSaved(new Date());
+        toast.success('Rascunho salvo automaticamente', { 
+          duration: 2000,
+          icon: '💾'
+        });
+      } catch (error) {
+        console.error('[AutoSave] Erro ao salvar:', error);
+      }
+    }, 30000); // 30 segundos
+    
+    return () => clearInterval(timer);
+  }, [stationId, preventiveNumber, date, observations, checklistItems]);
+
+  // Recuperar rascunho ao montar componente
+  useEffect(() => {
+    const draft = localStorage.getItem('maintenance-draft');
+    if (draft) {
+      try {
+        const { data: savedData, timestamp } = JSON.parse(draft);
+        const draftAge = Date.now() - (savedData?.timestamp || timestamp || 0);
+        
+        // Se rascunho tem menos de 24 horas
+        if (draftAge < 24 * 60 * 60 * 1000) {
+          const shouldRecover = window.confirm(
+            'Encontramos um rascunho salvo. Deseja recuperá-lo?'
+          );
+          
+          if (shouldRecover && savedData) {
+            setStationId(savedData.stationId || '');
+            setPreventiveNumber(savedData.preventiveNumber || '');
+            setDate(savedData.date || new Date().toISOString().split('T')[0]);
+            setObservations(savedData.observations || '');
+            
+            // Recuperar itens do checklist
+            if (savedData.checklistItems) {
+              setChecklistItems(prev => 
+                prev.map((item, index) => {
+                  const saved = savedData.checklistItems[index];
+                  return saved ? {
+                    ...item,
+                    status: saved.status || item.status,
+                    value: saved.value || item.value,
+                    correctiveAction: saved.correctiveAction || item.correctiveAction,
+                    observations: saved.observations || item.observations
+                  } : item;
+                })
+              );
+            }
+            
+            toast.success('Rascunho recuperado!');
+          } else {
+            localStorage.removeItem('maintenance-draft');
+          }
+        } else {
+          // Rascunho muito antigo, remover
+          localStorage.removeItem('maintenance-draft');
+        }
+      } catch (error) {
+        console.error('[Recovery] Erro ao recuperar rascunho:', error);
+        localStorage.removeItem('maintenance-draft');
+      }
+    }
+  }, []); // Executar apenas na montagem
 
   const updateChecklistItem = (index: number, field: keyof ChecklistItemData, value: any) => {
     setChecklistItems((prev) => {
@@ -116,6 +204,9 @@ export default function NewMaintenance() {
         }
       }
 
+      // Limpar rascunho após salvar com sucesso
+      localStorage.removeItem('maintenance-draft');
+      
       toast.success("Manutenção salva com sucesso!");
       setLocation("/");
     } catch (error) {
@@ -155,7 +246,14 @@ export default function NewMaintenance() {
             </Button>
             <div>
               <h1 className="text-xl font-bold text-foreground">Nova Manutenção Preventiva</h1>
-              <p className="text-sm text-muted-foreground">Preencha o checklist de 64 itens</p>
+              <p className="text-sm text-muted-foreground">
+                Preencha o checklist de 64 itens
+                {lastSaved && (
+                  <span className="ml-2 text-xs text-primary">
+                    • Último salvamento: {lastSaved.toLocaleTimeString('pt-BR')}
+                  </span>
+                )}
+              </p>
             </div>
           </div>
           <Button onClick={handleSubmit} className="gap-2">
