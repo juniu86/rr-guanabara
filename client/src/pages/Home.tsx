@@ -13,6 +13,8 @@ export default function Home() {
   const { user, loading, isAuthenticated } = useAuth();
   const { data: stations } = trpc.stations.list.useQuery();
   const { data: allMaintenances } = trpc.maintenances.listAll.useQuery();
+  const { data: conformityData } = trpc.maintenances.getConformityRadar.useQuery({});
+  const { data: questLog } = trpc.maintenances.getQuestLog.useQuery({});
 
   if (!loading && !isAuthenticated) {
     window.location.href = getLoginUrl();
@@ -45,20 +47,7 @@ export default function Home() {
     ? Math.round((completedMaintenances / totalMaintenances) * 100)
     : 75;
 
-  const conformityData = [
-    { subject: 'NR-20 Ambiental', value: 85, fullMark: 100 },
-    { subject: 'NR-10 Elétrica', value: 90, fullMark: 100 },
-    { subject: 'Documentação', value: 75, fullMark: 100 },
-    { subject: 'Limpeza/5S', value: 80, fullMark: 100 },
-    { subject: 'Metrologia', value: 95, fullMark: 100 },
-  ];
-
-  const questLog = [
-    { id: 1, title: 'Limpeza Caixa SAO', priority: 'critical', status: 'pending', reward: '+500 XP' },
-    { id: 2, title: 'Calibração Bicos', priority: 'high', status: 'pending', reward: '+300 XP' },
-    { id: 3, title: 'Troca Filtros Diesel', priority: 'high', status: 'pending', reward: '+150 XP' },
-    { id: 4, title: 'Reapertar Elétrico', priority: 'medium', status: 'completed', reward: '+100 XP' },
-  ];
+  // Dados agora vem do backend (dados reais)
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -237,8 +226,7 @@ export default function Home() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {questLog.map((quest) => (
-                <div
+              {(questLog || []).map((quest) => (                <div
                   key={quest.id}
                   className={`p-4 rounded-lg border-2 ${getPriorityColor(quest.priority)} ${
                     quest.status === 'completed' ? 'opacity-60' : ''
@@ -254,7 +242,7 @@ export default function Home() {
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium">Reward: {quest.reward}</span>
+                      <span className="text-muted-foreground">{quest.observations || 'Sem observações'}</span>
                       <Badge variant={quest.status === 'completed' ? 'default' : 'secondary'} className="text-xs">
                         {quest.status === 'completed' ? 'CONCLUÍDO' : 'PENDENTE'}
                       </Badge>

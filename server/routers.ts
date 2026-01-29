@@ -190,6 +190,176 @@ export const appRouter = router({
           });
         }
       }),
+
+    // Calcular Radar de Conformidade baseado em dados reais
+    getConformityRadar: protectedProcedure
+      .input(z.object({ stationId: z.number().optional() }))
+      .query(async ({ input }) => {
+        const maintenances = input.stationId 
+          ? await db.getMaintenancesByStation(input.stationId)
+          : await db.getAllMaintenances();
+        
+        if (!maintenances || maintenances.length === 0) {
+          return [
+            { subject: 'NR-20 Ambiental', value: 0, fullMark: 100 },
+            { subject: 'NR-10 Elétrica', value: 0, fullMark: 100 },
+            { subject: 'Documentação', value: 0, fullMark: 100 },
+            { subject: 'Limpeza/5S', value: 0, fullMark: 100 },
+            { subject: 'Metrologia', value: 0, fullMark: 100 },
+          ];
+        }
+
+        // Buscar todos os itens de checklist das manutenções
+        const allItems = [];
+        for (const maintenance of maintenances) {
+          const items = await db.getChecklistItemsByMaintenance(maintenance.id);
+          allItems.push(...items);
+        }
+
+        if (allItems.length === 0) {
+          return [
+            { subject: 'NR-20 Ambiental', value: 0, fullMark: 100 },
+            { subject: 'NR-10 Elétrica', value: 0, fullMark: 100 },
+            { subject: 'Documentação', value: 0, fullMark: 100 },
+            { subject: 'Limpeza/5S', value: 0, fullMark: 100 },
+            { subject: 'Metrologia', value: 0, fullMark: 100 },
+          ];
+        }
+
+        // Categorizar itens por tipo
+        const categories = {
+          ambiental: ['canaleta', 'caixa separadora', 'spill', 'sump', 'vazamento'],
+          eletrica: ['sensor', 'painel', 'ihm', 'intertravamento', 'interrupção'],
+          documentacao: ['veeder', 'sistema', 'encerrante'],
+          limpeza: ['limpeza', 'limpar', 'sujeira'],
+          metrologia: ['aferição', 'bico', 'calibração', 'manômetro', 'filtro'],
+        };
+
+        const conformityByCategory: Record<string, { total: number; conforme: number }> = {
+          ambiental: { total: 0, conforme: 0 },
+          eletrica: { total: 0, conforme: 0 },
+          documentacao: { total: 0, conforme: 0 },
+          limpeza: { total: 0, conforme: 0 },
+          metrologia: { total: 0, conforme: 0 },
+        };
+
+        // Contar conformidades por categoria
+        for (const item of allItems) {
+          const equipName = item.equipmentName.toLowerCase();
+          let categorized = false;
+
+          for (const [category, keywords] of Object.entries(categories)) {
+            if (keywords.some(keyword => equipName.includes(keyword))) {
+              conformityByCategory[category].total++;
+              if (item.status === 'confere') {
+                conformityByCategory[category].conforme++;
+              }
+              categorized = true;
+              break;
+            }
+          }
+
+          // Se não foi categorizado, adicionar em metrologia (padrão)
+          if (!categorized) {
+            conformityByCategory.metrologia.total++;
+            if (item.status === 'confere') {
+              conformityByCategory.metrologia.conforme++;
+            }
+          }
+        }
+
+        // Calcular percentuais
+        return [
+          { 
+            subject: 'NR-20 Ambiental', 
+            value: conformityByCategory.ambiental.total > 0 
+              ? Math.round((conformityByCategory.ambiental.conforme / conformityByCategory.ambiental.total) * 100)
+              : 0,
+            fullMark: 100 
+          },
+          { 
+            subject: 'NR-10 Elétrica', 
+            value: conformityByCategory.eletrica.total > 0
+              ? Math.round((conformityByCategory.eletrica.conforme / conformityByCategory.eletrica.total) * 100)
+              : 0,
+            fullMark: 100 
+          },
+          { 
+            subject: 'Documentação', 
+            value: conformityByCategory.documentacao.total > 0
+              ? Math.round((conformityByCategory.documentacao.conforme / conformityByCategory.documentacao.total) * 100)
+              : 0,
+            fullMark: 100 
+          },
+          { 
+            subject: 'Limpeza/5S', 
+            value: conformityByCategory.limpeza.total > 0
+              ? Math.round((conformityByCategory.limpeza.conforme / conformityByCategory.limpeza.total) * 100)
+              : 100, // Se não tem itens de limpeza, assume 100%
+            fullMark: 100 
+          },
+          { 
+            subject: 'Metrologia', 
+            value: conformityByCategory.metrologia.total > 0
+              ? Math.round((conformityByCategory.metrologia.conforme / conformityByCategory.metrologia.total) * 100)
+              : 0,
+            fullMark: 100 
+          },
+        ];
+      }),
+
+    // Extrair ações necessárias (QUESLog) dos itens
+    getQuestLog: protectedProcedure
+      .input(z.object({ stationId: z.number().optional() }))
+      .query(async ({ input }) => {
+        const maintenances = input.stationId 
+          ? await db.getMaintenancesByStation(input.stationId)
+          : await db.getAllMaintenances();
+        
+        if (!maintenances || maintenances.length === 0) {
+          return [];
+        }
+
+        // Buscar todos os itens de checklist das manutenções
+        const allItems = [];
+        for (const maintenance of maintenances) {
+          const items = await db.getChecklistItemsByMaintenance(maintenance.id);
+          allItems.push(...items.map(item => ({ ...item, maintenanceId: maintenance.id })));
+        }
+
+        // Filtrar itens que precisam de ação
+        const actionItems = allItems.filter(item => 
+          item.status === 'realizar_reparo' || 
+          item.status === 'realizar_troca' ||
+          item.status === 'realizar_limpeza'
+        );
+
+        // Mapear para formato QUESLog
+        return actionItems.map((item, index) => {
+          let priority: 'critical' | 'high' | 'medium' = 'medium';
+          let action = '';
+
+          if (item.status === 'realizar_troca') {
+            priority = 'critical';
+            action = 'Troca';
+          } else if (item.status === 'realizar_reparo') {
+            priority = 'high';
+            action = 'Reparo';
+          } else if (item.status === 'realizar_limpeza') {
+            priority = 'medium';
+            action = 'Limpeza';
+          }
+
+          return {
+            id: item.id,
+            title: `${action}: ${item.equipmentName}`,
+            priority,
+            status: 'pending',
+            observations: item.observations || '',
+            maintenanceId: item.maintenanceId,
+          };
+        });
+      }),
   }),
 
   checklistItems: router({
