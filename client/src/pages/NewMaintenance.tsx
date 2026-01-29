@@ -13,6 +13,18 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 
+// Constantes de validação
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+const ALLOWED_FILE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
+
+// Helper para formatar tamanho de arquivo
+const formatFileSize = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
 // Helper para ler arquivo como base64 de forma síncrona
 const readFileAsBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -52,6 +64,15 @@ export default function NewMaintenance() {
   const [technicianSignature, setTechnicianSignature] = useState("");
   const [clientSignature, setClientSignature] = useState("");
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{
+    current: number;
+    total: number;
+    isUploading: boolean;
+  }>({
+    current: 0,
+    total: 0,
+    isUploading: false,
+  });
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: boolean }>({});
   const [checklistItems, setChecklistItems] = useState<ChecklistItemData[]>(
     CHECKLIST_EQUIPMENT.map((eq) => ({
@@ -171,9 +192,52 @@ export default function NewMaintenance() {
   };
 
   const handlePhotoChange = (index: number, files: FileList | null) => {
-    if (!files) return;
-    const newPhotos = Array.from(files);
-    updateChecklistItem(index, "photos", [...checklistItems[index].photos, ...newPhotos]);
+    if (!files || files.length === 0) return;
+
+    let validFiles = Array.from(files);
+    let errors: string[] = [];
+
+    // Validar tipo de arquivo
+    const invalidTypeFiles = validFiles.filter(f => !ALLOWED_FILE_TYPES.includes(f.type));
+    if (invalidTypeFiles.length > 0) {
+      errors.push(
+        `${invalidTypeFiles.length} arquivo(s) não são imagens válidas (JPG, PNG, WebP)`
+      );
+      validFiles = validFiles.filter(f => ALLOWED_FILE_TYPES.includes(f.type));
+    }
+
+    // Validar tamanho dos arquivos
+    const oversizedFiles = validFiles.filter(f => f.size > MAX_FILE_SIZE);
+    if (oversizedFiles.length > 0) {
+      errors.push(
+        `${oversizedFiles.length} foto(s) excedem o limite de ${formatFileSize(MAX_FILE_SIZE)}`
+      );
+      validFiles = validFiles.filter(f => f.size <= MAX_FILE_SIZE);
+    }
+
+    // Mostrar erros se houver
+    if (errors.length > 0) {
+      toast.error(
+        errors.join('. ') + '. Estes arquivos foram ignorados.',
+        { duration: 5000 }
+      );
+    }
+
+    // Se não houver arquivos válidos, retornar
+    if (validFiles.length === 0) {
+      return;
+    }
+
+    // Atualizar estado com arquivos válidos
+    updateChecklistItem(index, "photos", [...checklistItems[index].photos, ...validFiles]);
+
+    // Feedback de sucesso
+    if (validFiles.length > 0) {
+      toast.success(
+        `${validFiles.length} foto(s) adicionada(s) com sucesso.`,
+        { duration: 3000 }
+      );
+    }
   };
 
   const removePhoto = (itemIndex: number, photoIndex: number) => {
@@ -232,23 +296,52 @@ export default function NewMaintenance() {
           observations: item.observations,
         });
 
-        // Upload de fotos - aguardar todos os uploads antes de continuar
+        // Upload de fotos com progresso
         if (item.photos.length > 0) {
-          await Promise.all(
-            item.photos.map(async (photo) => {
+          setUploadProgress({
+            current: 0,
+            total: item.photos.length,
+            isUploading: true,
+          });
+
+          const uploadResults = await Promise.allSettled(
+            item.photos.map(async (photo, index) => {
               try {
                 const base64 = await readFileAsBase64(photo);
-                await uploadPhotoMutation.mutateAsync({
+                const result = await uploadPhotoMutation.mutateAsync({
                   checklistItemId: itemId,
                   fileData: base64,
                   fileName: photo.name,
                 });
+                
+                // Atualizar progresso
+                setUploadProgress(prev => ({
+                  ...prev,
+                  current: prev.current + 1,
+                }));
+                
+                return result;
               } catch (error) {
-                console.error(`Erro ao fazer upload de ${photo.name}:`, error);
-                toast.error(`Erro ao fazer upload de ${photo.name}`);
+                console.error(`Erro ao fazer upload da foto ${photo.name}:`, error);
+                throw error;
               }
             })
           );
+
+          // Verificar se houve falhas
+          const failedUploads = uploadResults.filter(r => r.status === 'rejected');
+          
+          if (failedUploads.length > 0) {
+            setUploadProgress({ current: 0, total: 0, isUploading: false });
+            toast.error(
+              `${failedUploads.length} de ${item.photos.length} fotos falharam. ` +
+              `Por favor, tente novamente.`,
+              { duration: 5000 }
+            );
+            return; // Não prosseguir se houver falhas
+          }
+
+          setUploadProgress({ current: 0, total: 0, isUploading: false });
         }
       }
 
@@ -538,11 +631,14 @@ export default function NewMaintenance() {
                       <input
                         id={`photo-${index}`}
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp,image/jpg"
                         multiple
                         className="hidden"
                         onChange={(e) => handlePhotoChange(index, e.target.files)}
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Máximo {formatFileSize(MAX_FILE_SIZE)} por foto. Formatos: JPG, PNG, WebP
+                      </p>
                       
                       {/* Preview de fotos */}
                       {item.photos.length > 0 && (
@@ -585,13 +681,42 @@ export default function NewMaintenance() {
             </CardContent>
           </Card>
 
+          {/* Feedback de upload */}
+          {uploadProgress.isUploading && (
+            <div className="space-y-2 p-4 bg-muted rounded-lg">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">
+                  Enviando fotos...
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {uploadProgress.current} de {uploadProgress.total}
+                </p>
+              </div>
+              <Progress 
+                value={(uploadProgress.current / uploadProgress.total) * 100} 
+                className="h-2"
+              />
+            </div>
+          )}
+
           <div className="flex justify-end gap-4">
             <Button type="button" variant="outline" asChild>
               <Link href="/">Cancelar</Link>
             </Button>
-            <Button type="submit" className="gap-2">
+            <Button 
+              type="submit" 
+              className="gap-2"
+              disabled={
+                uploadProgress.isUploading || 
+                !stationId || 
+                checklistItems.length === 0
+              }
+            >
               <Save className="h-4 w-4" />
-              Salvar Manutenção
+              {uploadProgress.isUploading 
+                ? `Enviando fotos (${uploadProgress.current}/${uploadProgress.total})...`
+                : "Salvar Manutenção"
+              }
             </Button>
           </div>
         </form>
